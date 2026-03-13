@@ -4,10 +4,5 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Config:
-    """
-    Configuration class for the application.
-    Loads environment variables and sets default values.
-    """
-    DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/cession_db")
-    HMAC_SECRET = os.getenv("HMAC_SECRET", "supersecretkey")
-    # Define other configuration variables here
+    HMAC_SECRET_KEY = os.getenv("HMAC_SECRET_KEY", "default_secret_key")
+    DATABASE_URI = "in_memory"
