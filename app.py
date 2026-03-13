@@ -56,9 +56,14 @@ def calculate_cession():
         return jsonify({"message": "Unauthorized: Invalid HMAC header"}), 401
 
     # 2. Input Validation
-    data = request.get_json()
+    try:
+        data = request.get_json(force=True) # force=True will try to parse even if content-type is not application/json
+    except Exception as e:
+        logging.error(f"Bad Request: Invalid JSON data or content type. Error: {e}")
+        return jsonify({"message": "Bad Request: Invalid JSON data or content type"}), 400
+
     if not data:
-        logging.error("Bad Request: No JSON data provided.")
+        logging.error("Bad Request: No JSON data provided or empty JSON.")
         return jsonify({"message": "Bad Request: No JSON data provided"}), 400
 
     risk_id = data.get("risk_id")
