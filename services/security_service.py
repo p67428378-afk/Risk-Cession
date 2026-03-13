@@ -1,28 +1,37 @@
 import hmac
 import hashlib
+import os
 from config import Config
 
 class SecurityService:
-    def validateHmacHeader(self, header_value: str, request_body: bytes) -> bool:
-        # In a real scenario, the header_value would contain the HMAC signature
-        # and potentially other information like a timestamp or nonce.
-        # For this HLD, we'll assume a simple HMAC-SHA256 validation against the request body.
-        # The HLD states "The exact implementation of the X-Reinsurance-Hmac header validation needs to be finalized."
-        # So, this is a basic placeholder.
+    """
+    Service responsible for validating the X-Reinsurance-Hmac header.
+    This implementation uses HMAC-SHA256 for validation.
+    """
+    def __init__(self):
+        self.hmac_secret_key = Config.HMAC_SECRET_KEY.encode('utf-8')
 
+    def validateHmacHeader(self, header_value: str, request_body: bytes) -> bool:
+        """
+        Validates the X-Reinsurance-Hmac header against the request body.
+
+        Args:
+            header_value (str): The value of the 'X-Reinsurance-Hmac' header.
+            request_body (bytes): The raw request body as bytes.
+
+        Returns:
+            bool: True if the HMAC is valid, False otherwise.
+        """
         if not header_value:
             return False
 
-        # For demonstration, let's assume the header_value is the expected HMAC
-        # and we compare it with a generated HMAC from the request body.
-        # In a real system, the client would send the HMAC, and the server would verify it.
+        # Calculate HMAC-SHA256 of the request body
+        calculated_hmac = hmac.new(
+            self.hmac_secret_key,
+            request_body,
+            hashlib.sha256
+        ).hexdigest()
 
-        secret_key = Config.HMAC_SECRET_KEY.encode('utf-8')
-        generated_hmac = hmac.new(secret_key, request_body, hashlib.sha256).hexdigest()
-
-        # For now, we'll just check if the header is present and not empty.
-        # A more robust implementation would compare `header_value` with `generated_hmac`.
-        # For the purpose of this exercise, we'll consider any non-empty header as "valid"
-        # and log a warning that this is a placeholder.
-        print("WARNING: SecurityService.validateHmacHeader is a placeholder. Implement robust HMAC validation.")
-        return True # Placeholder: always return True if header is present.
+        # Compare the calculated HMAC with the provided header value
+        # Using hmac.compare_digest for constant-time comparison to prevent timing attacks
+        return hmac.compare_digest(calculated_hmac, header_value)
