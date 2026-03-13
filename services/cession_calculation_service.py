@@ -1,84 +1,51 @@
-"""
-Module: cession_calculation_service
-Purpose: Implements the core logic for calculating risk cession based on defined rules.
-Author: Your Name
-Created: 2023-10-27
-Notes: Uses the Strategy Pattern for reinsurer-specific calculations.
-"""
-
 from typing import Dict
-from strategies.reinsurer_strategy import ReinsurerStrategy
-from strategies.reinsurer_a_strategy import ReinsurerAStrategy
-from strategies.global_re_group_strategy import GlobalReGroupStrategy
+from strategies.retention_strategy import RetentionStrategy
+from strategies.proportional_strategy import ProportionalStrategy
+from strategies.xol_strategy import XOLStrategy
 
 class CessionCalculationService:
-    """
-    Service responsible for calculating risk cession based on various layers
-    (Retention, Proportional, XOL) and applying reinsurer strategies.
-    """
-    RETENTION_LAYER_THRESHOLD = 10_000_000.0
-    PROPORTIONAL_LAYER_MAX = 50_000_000.0
-
     def __init__(self):
-        self.reinsurer_strategies: Dict[str, ReinsurerStrategy] = {
-            "reinsurer_a": ReinsurerAStrategy(),
-            "global_re_group": GlobalReGroupStrategy()
-        }
+        self.retention_strategy = RetentionStrategy()
+        self.proportional_strategy = ProportionalStrategy()
+        self.xol_strategy = XOLStrategy()
 
-    def calculate_cession(self, risk_id: str, risk_amount: float, currency: str) -> Dict:
-        """
-        Calculates the cession amounts for each reinsurer and the final retention.
-
-        Args:
-            risk_id (str): Identifier for the risk.
-            risk_amount (float): The total amount of the risk.
-            currency (str): The currency of the risk amount.
-
-        Returns:
-            dict: A dictionary containing risk details, retention, and cession amounts.
-                  Example: {
-                      "risk_id": "string",
-                      "risk_amount": "number",
-                      "currency": "string",
-                      "retention": "number",
-                      "reinsurer_a_cession": "number",
-                      "global_re_group_cession": "number"
-                  }
-        """
+    def calculateCession(self, risk_id: str, risk_amount: float, currency: str) -> Dict:
         retention = 0.0
         reinsurer_a_cession = 0.0
         global_re_group_cession = 0.0
 
-        # 1. Retention Layer
-        if risk_amount <= self.RETENTION_LAYER_THRESHOLD:
+        # Apply Retention Layer
+        if risk_amount <= self.retention_strategy.RETENTION_THRESHOLD:
             retention = risk_amount
         else:
-            # For risks above retention layer, initial retention is the threshold
-            # or the amount remaining after proportional/XOL are considered.
-            # The HLD states "retains 100% of the risk" for < $10M, and
-            # "retains the first $50,000,000" for XOL.
-            # We'll calculate cessions first and then determine final retention.
+            retention = self.retention_strategy.RETENTION_THRESHOLD
+            remaining_risk = risk_amount - retention
 
-            # 2. Proportional Layer (Reinsurer A)
-            if self.RETENTION_LAYER_THRESHOLD < risk_amount <= self.PROPORTIONAL_LAYER_MAX:
-                reinsurer_a_cession, _ = self.reinsurer_strategies["reinsurer_a"].calculate_cession(
-                    risk_amount, 0.0 # current_retention is not directly used here for proportional
-                )
-                retention = risk_amount - reinsurer_a_cession
-            elif risk_amount > self.PROPORTIONAL_LAYER_MAX:
-                # Reinsurer A's cession is capped at the proportional layer max
-                reinsurer_a_cession, _ = self.reinsurer_strategies["reinsurer_a"].calculate_cession(
-                    self.PROPORTIONAL_LAYER_MAX, 0.0
-                )
-                # 3. Excess of Loss (XOL) Layer (Global Re Group)
-                global_re_group_cession, _ = self.reinsurer_strategies["global_re_group"].calculate_cession(
-                    risk_amount, 0.0 # current_retention is not directly used here for XOL
-                )
-                # For XOL, the HLD states "retains the first $50,000,000"
-                retention = self.PROPORTIONAL_LAYER_MAX - reinsurer_a_cession # Retention up to proportional layer max
-                # The remaining amount after XOL cession is also retained up to the XOL threshold
-                if risk_amount > self.PROPORTIONAL_LAYER_MAX:
-                    retention = self.PROPORTIONAL_LAYER_MAX # Fixed retention for XOL layer
+            # Apply Proportional Layer
+            if remaining_risk > 0 and risk_amount <= self.proportional_strategy.PROPORTIONAL_MAX_THRESHOLD:
+                proportional_cession = self.proportional_strategy.calculate_cession(risk_amount)
+                reinsurer_a_cession = proportional_cession
+                retention += (risk_amount - self.retention_strategy.RETENTION_THRESHOLD) - proportional_cession
+            elif risk_amount > self.proportional_strategy.PROPORTIONAL_MAX_THRESHOLD:
+                # Calculate proportional cession for the part within the proportional layer
+                proportional_cession_base = self.proportional_strategy.PROPORTIONAL_MAX_THRESHOLD - self.retention_strategy.RETENTION_THRESHOLD
+                reinsurer_a_cession = proportional_cession_base * self.proportional_strategy.CESSION_PERCENTAGE
+                
+                # Update retention based on the proportional layer
+                retention += proportional_cession_base - reinsurer_a_cession
+                
+                # Remaining risk after retention and proportional layer
+                remaining_risk_after_proportional = risk_amount - self.proportional_strategy.PROPORTIONAL_MAX_THRESHOLD
+
+                # Apply XOL Layer
+                if remaining_risk_after_proportional > 0:
+                    global_re_group_cession = self.xol_strategy.calculate_cession(risk_amount)
+                    # The HLD states "retains the first $50,000,000 and cedes 100% of the surplus"
+                    # So, retention should be capped at XOL_THRESHOLD if XOL applies.
+                    retention = self.xol_strategy.XOL_THRESHOLD
+        
+        # Ensure retention is not negative due to floating point inaccuracies or logic errors
+        retention = max(0.0, retention)
 
         return {
             "risk_id": risk_id,
