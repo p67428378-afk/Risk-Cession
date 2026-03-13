@@ -1,12 +1,25 @@
-# Python
-.env
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.pyc
-*.pyo
 *.pyd
-.Python/
-env/
+*.pyo
+
+# Virtual environment
 venv/
-*.env
+.env
+
+# Editor directories and files
+.vscode/
+.idea/
+*.swp
+*~
+
+# OS-specific files
 .DS_Store
-.pytest_cache/
+thumbs.db
+
+# Logs
+*.log
+
+# Database
+*.db
