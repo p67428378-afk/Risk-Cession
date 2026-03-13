@@ -1,25 +1,18 @@
-# Byte-compiled / optimized / DLL files
+# Python
 __pycache__/
 *.pyc
-*.pyd
 *.pyo
-
-# Virtual environment
+*.pyd
+.Python
+env/
 venv/
-.env
+*.env
+.flaskenv
 
-# Editor directories and files
-.vscode/
+# IDEs
 .idea/
-*.swp
-*~
+.vscode/
 
-# OS-specific files
+# OS
 .DS_Store
-thumbs.db
-
-# Logs
-*.log
-
-# Database
-*.db
+.env
