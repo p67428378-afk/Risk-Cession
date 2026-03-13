@@ -4,5 +4,4 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Config:
-    HMAC_SECRET_KEY = os.getenv("HMAC_SECRET_KEY", "default_secret_key")
-    DATABASE_URI = "in_memory"
+    SECRET_KEY = os.environ.get('HMAC_SECRET_KEY') or 'a_default_secret_key_if_not_set'
