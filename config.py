@@ -4,4 +4,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Config:
-    SECRET_KEY = os.environ.get('HMAC_SECRET_KEY') or 'a_default_secret_key_if_not_set'
+    SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/risk_cession_db")
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    HMAC_SECRET_KEY = os.getenv("HMAC_SECRET_KEY", "super_secret_default_key")
+    FLASK_APP = os.getenv("FLASK_APP", "app.py")
+    FLASK_ENV = os.getenv("FLASK_ENV", "development")
